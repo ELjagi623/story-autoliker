@@ -1,0 +1,10 @@
+PySide6>=6.6
+opencv-python-headless>=4.8
+mss>=9.0
+numpy>=1.24
+pyautogui>=0.9.54
+pynput>=1.7.6
+# macOS only: needed by pyautogui and for the Screen Recording / Accessibility permission checks
+pyobjc-core>=9.0; sys_platform == "darwin"
+pyobjc-framework-Quartz>=9.0; sys_platform == "darwin"
+pyobjc-framework-ApplicationServices>=9.0; sys_platform == "darwin"
