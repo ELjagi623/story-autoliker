@@ -6,6 +6,8 @@ with the restrictions removed one at a time, which tells the causes apart:
 * ``scale``     - the icon is on screen but at a size outside the configured scale range
                   (or multi-scale is off): fix = widen the scale range around the size that matched.
 * ``region``    - the icon is on screen but outside the search box: fix = a box around where it is.
+* ``outline``   - the template is a transparent outline icon (e.g. an outline heart) and only matches once the
+                  background showing through it is ignored: fix = switch on outline mode.
 * ``threshold`` - something similar is there but the confidence is a bit too low: fix = lower threshold.
 * ``absent``    - nothing resembling the template: re-capture it while the icon is visible.
 """
@@ -16,7 +18,7 @@ from typing import Any, Optional
 
 import numpy as np
 
-from .matcher import MatchResult, Matcher, scale_list
+from .matcher import OUTLINE_SUGGEST_SHARE, MatchResult, Matcher, scale_list, stroke_share
 from .models import Preset, Step
 from .presets import resolve_region
 from .screen import Frame, Rect
@@ -27,10 +29,11 @@ NEAR_MISS_MARGIN = 0.30  # confidence this close to the threshold (and >= 0.5) c
 
 @dataclass
 class Diagnosis:
-    kind: str  # ok | scale | region | threshold | absent
+    kind: str  # ok | scale | region | outline | threshold | absent
     title: str
     lines: list[str] = field(default_factory=list)
-    # Proposed settings change. Keys: scale_min, scale_max, multi_scale, threshold, region (global box).
+    # Proposed settings change. Keys: scale_min, scale_max, multi_scale, threshold, ignore_background,
+    # region (global box).
     fix: dict[str, Any] = field(default_factory=dict)
     confidence: float = 0.0
     rect: Optional[Rect] = None  # where the best match was, in screen coordinates
@@ -54,7 +57,8 @@ def diagnose(frame: Frame, step: Step, template: np.ndarray, preset: Optional[Pr
     use_box = img_region is not None
     configured = scale_list(step.scale_min, step.scale_max) if step.multi_scale else [1.0]
 
-    r0 = matcher.find(frame.image, template, thr, scales=configured, region=img_region, grayscale=step.grayscale)
+    r0 = matcher.find(frame.image, template, thr, scales=configured, region=img_region, grayscale=step.grayscale,
+                      outline=step.ignore_background)
     where0 = _screen_rect(frame, r0)
     if r0.found:
         return Diagnosis("ok", f"FOUND with confidence {r0.confidence:.2f} (threshold {thr:.2f}): a run WOULD click.",
@@ -62,7 +66,7 @@ def diagnose(frame: Frame, step: Step, template: np.ndarray, preset: Optional[Pr
 
     # 1) same area, but any size
     rw = matcher.find(frame.image, template, thr, scales=scale_list(WIDE_MIN, WIDE_MAX), region=img_region,
-                      grayscale=step.grayscale)
+                      grayscale=step.grayscale, outline=step.ignore_background)
     where_w = _screen_rect(frame, rw)
     if rw.found:
         smaller = rw.scale < 1.0
@@ -86,7 +90,7 @@ def diagnose(frame: Frame, step: Step, template: np.ndarray, preset: Optional[Pr
     rr: Optional[MatchResult] = None
     if use_box:
         rr = matcher.find(frame.image, template, thr, scales=scale_list(WIDE_MIN, WIDE_MAX), region=None,
-                          grayscale=step.grayscale)
+                          grayscale=step.grayscale, outline=step.ignore_background)
         if rr.found:
             w = _screen_rect(frame, rr)
             pad = int(max(40, w.width, w.height))
@@ -98,6 +102,23 @@ def diagnose(frame: Frame, step: Step, template: np.ndarray, preset: Optional[Pr
                  f"the search box is x={box[0]} y={box[1]} w={box[2]} h={box[3]}.",
                  "Fix: redraw the search box around where the icon really is (one click below)."],
                 fix={"region": new_box}, confidence=rr.confidence, rect=w, scale=rr.scale,
+            )
+
+    # 3) a transparent outline icon? Ignore the background showing through it (any size, same area).
+    if not step.ignore_background and stroke_share(template) < OUTLINE_SUGGEST_SHARE:
+        scales = scale_list(step.scale_min, step.scale_max) if step.multi_scale else [1.0]
+        ro = matcher.find(frame.image, template, thr, scales=scales, region=img_region, outline=True)
+        if ro.found:
+            w = _screen_rect(frame, ro)
+            return Diagnosis(
+                "outline",
+                f"Found once the background is ignored (confidence {ro.confidence:.2f}, plain match only "
+                f"{max(r0.confidence, rw.confidence):.2f}): this is a transparent outline icon.",
+                [f"Found at ({w.left:.0f},{w.top:.0f}), size {w.width:.0f}x{w.height:.0f}.",
+                 "The see-through parts of the template still hold the background it was captured on, so a busy "
+                 "background lowers the plain score.",
+                 "Fix: switch on 'Outline / transparent icon' for this step (one click below)."],
+                fix={"ignore_background": True}, confidence=ro.confidence, rect=w, scale=ro.scale,
             )
 
     best = max((r for r in (r0, rw, rr) if r is not None), key=lambda r: r.confidence)

@@ -42,7 +42,7 @@ def test_preset_create_switch_and_edits_go_to_the_right_place(g):
     assert g.active_preset is big and g.preset_combo.currentData() == big.id
     assert big.resolution == (2560, 1440) and big.monitor == 1
     assert g.step_editor._region_on is False  # presets never inherit another display's box
-    assert "preset 'Desk'" in g.step_editor.region_hint.text()
+    assert "(Desk)" in g.step_editor.region_hint.text()
     g.step_editor.set_region_values((500, 600, 120, 90))
     assert big.regions[step.id] == (500, 600, 120, 90) and step.region == (10, 20, 300, 200)
 
@@ -89,13 +89,13 @@ def test_capturing_inside_a_preset_saves_a_preset_template_not_the_default(g):
 
 def test_item_flags_show_missing_template_and_missing_search_box(g):
     g.add_step()
-    assert "NO TEMPLATE" in g.step_list.item(0).text()
+    assert "No target" in g.step_list.item(0).text()
     storage.save_template(g.profile.directory, g.profile.steps[0], make_heart(30))
     g._refresh_items()
-    assert "no search box" in g.step_list.item(0).text()
+    assert "No search area" in g.step_list.item(0).text()
     g.step_list.setCurrentRow(0)
     g.step_editor.set_region_values((0, 0, 50, 50))
-    assert "no search box" not in g.step_list.item(0).text()
+    assert "No search area" not in g.step_list.item(0).text()
 
 
 def test_delete_and_duplicate_step_keep_presets_consistent(g):
@@ -173,7 +173,7 @@ def test_capture_template_then_search_box_in_one_go(qapp, g, monkeypatch, use_pr
     g.capture_step_template()
 
     ov = _wait_overlay(qapp, g)  # stage 1: the template
-    assert "template" in ov._hint.lower() and not ov._guides
+    assert "target" in ov._hint.lower() and not ov._guides
     _drag(ov, 0.25, 0.25, 0.50, 0.50)
     qapp.processEvents()
     tpl = effective_template(step, g.active_preset)
@@ -182,7 +182,7 @@ def test_capture_template_then_search_box_in_one_go(qapp, g, monkeypatch, use_pr
     assert abs(img.shape[1] - 200) <= 2 and abs(img.shape[0] - 150) <= 2  # 25% x 25% of an 800x600 screenshot
 
     ov2 = _wait_overlay(qapp, g)  # stage 2 appeared automatically, on the same screenshot
-    assert "SEARCH BOX" in ov2._hint and any(lab == "template" for *_r, lab in ov2._guides)
+    assert "SEARCH AREA" in ov2._hint and any(lab == "template" for *_r, lab in ov2._guides)
     _drag(ov2, 0.10, 0.10, 0.70, 0.80)
     qapp.processEvents()
     box = effective_region(step, g.active_preset)
@@ -194,7 +194,7 @@ def test_capture_template_then_search_box_in_one_go(qapp, g, monkeypatch, use_pr
     if use_preset:
         assert step.region is None  # the default configuration was not touched
     assert g._overlay is None and not g.isMinimized()
-    assert "no search box" not in g.step_list.item(0).text()
+    assert "No search area" not in g.step_list.item(0).text()
 
 
 def test_search_box_stage_skipped_when_box_exists_and_esc_skips_it(qapp, g, monkeypatch):

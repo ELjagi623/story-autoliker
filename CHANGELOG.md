@@ -1,5 +1,30 @@
 # Changelog
 
+## 1.2.0 - 2026-11-10
+
+**Transparent icons and "not found" fallbacks** (profile schema 4; older profiles open unchanged, every new option is off).
+
+* **Outline / transparent icon** matching mode: only the icon's stroke is compared, so see-through icons such as Instagram's outline
+  heart are no longer missed on busy story backgrounds. *Test this step* diagnoses this case and offers the switch as a one-click fix.
+* **Look again where it was last found**: a relaxed search right around the last match before giving up.
+* **If still not found, click where it was last found**, guarded by a **Skip if this image is there** image (e.g. the red, liked heart),
+  at most 3 blind clicks in a row and only within 5 loops of a real match.
+* The Instagram example turns on outline mode and the rescue for the heart step.
+
+**Redesigned interface** (profiles from 1.1.0 open as before).
+
+* New look with **light and dark themes** (follows the system, switchable in the top bar) and an **English / Chinese** interface.
+* **Simple and Advanced modes.** Simple shows only: the step cards, the target image, click type, *click only if found*, a three-step
+  speed control, repeat count / infinite and a click limit. Advanced unfolds every setting in collapsible groups
+  (*Basic, Match, Search area, Click, Waits & failure handling*) plus a *Global settings* tab (stop hotkey, timing, end condition,
+  display presets, notes).
+* **Run dashboard** while running: status, clicks, loops, elapsed time, current step and the latest match confidence; the big Start
+  button turns into *Stop - F8*. A welcome screen guides an empty profile.
+* Friendlier wording: *template -> target image*, *search box -> search area*, *threshold -> match strictness*, *Monitor 0..16 -> a
+  display drop-down*. The stop hotkey is now captured by pressing the key instead of typing its name.
+* Restyled screen overlays (selection, match boxes, red STOP badge). Target thumbnails are still hidden while a run is active.
+* Icons: original MIT artwork (`assets/icons/icons.svg`), rendered with QtSvg.
+
 ## 1.1.0
 
 First public release.

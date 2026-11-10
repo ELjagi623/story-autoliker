@@ -57,3 +57,7 @@ This product uses Qt, which is a registered trademark of The Qt Company Ltd. Cli
 
 ClickFlow and the components above are provided "as is", without warranty of any kind. You are responsible for how you use the
 program, including compliance with the terms of the websites and applications you automate.
+
+## UI icon set
+
+`assets/icons/icons.svg` (38 line icons) is original artwork created for ClickFlow and released under the project's MIT licence.

@@ -1,7 +1,7 @@
 {
-  "version": 3,
+  "version": 4,
   "name": "instagram_story_like",
-  "notes": "Sample profile: like a story, then go to the next one. The two template images (the unliked heart and the next-story arrow) were captured on the author's screen, and the SEARCH BOXES ARE EMPTY on purpose, because they depend on your screen. To get started: (1) open the story viewer; (2) select each step and press 'Test this step' - if it says FOUND, a run would click; if it says NOT FOUND, press 'Capture template...' and drag around the icon on YOUR screen (the same drag then asks for the search box); (3) draw a 'search box' for every step - it makes scanning much faster and more reliable; (4) press 'Dry run', then 'Start'. F8, the red STOP button, or a screen corner stops it. Automated likes may violate Instagram's terms: keep the volume low, use the Speed slider and a click limit, and use it at your own risk.",
+  "notes": "Sample profile: like a story, then go to the next one. The two template images (the unliked heart and the next-story arrow) were captured on the author's screen, and the SEARCH BOXES ARE EMPTY on purpose, because they depend on your screen. To get started: (1) open the story viewer; (2) select each step and press 'Test this step' - if it says FOUND, a run would click; if it says NOT FOUND, press 'Capture template...' and drag around the icon on YOUR screen (the same drag then asks for the search box); (3) draw a 'search box' for every step - it makes scanning much faster and more reliable; (4) press 'Dry run', then 'Start'. The heart is a see-through outline, so its step has 'Outline / transparent icon' switched on (busy story backgrounds no longer hide it) and 'Look again where it was last found'. Optional: to also click the heart's usual spot when it still cannot be recognised, capture the RED (already liked) heart under 'Skip if this image is there' first, then switch on 'If still not found, click where it was last found' - without that image a blind click could unlike a story. F8, the red STOP button, or a screen corner stops it. Automated likes may violate Instagram's terms: keep the volume low, use the Speed slider and a click limit, and use it at your own risk.",
   "settings": {
     "loop_count": 10,
     "infinite_loop": true,
@@ -25,7 +25,7 @@
       "id": "99ca41cf",
       "enabled": true,
       "template": "templates/Like_heart_-_only_if_not_yet_liked_99ca41cf.png",
-      "threshold": 0.88,
+      "threshold": 0.85,
       "region": null,
       "offset_x": 0,
       "offset_y": 0,
@@ -41,7 +41,12 @@
       "multi_scale": true,
       "scale_min": 0.35,
       "scale_max": 2.5,
-      "grayscale": true
+      "grayscale": true,
+      "ignore_background": true,
+      "rescue_near_last": true,
+      "fallback_click_last": false,
+      "guard_template": "",
+      "guard_threshold": 0.85
     },
     {
       "name": "Next story (arrow)",
@@ -64,7 +69,12 @@
       "multi_scale": true,
       "scale_min": 0.35,
       "scale_max": 2.5,
-      "grayscale": true
+      "grayscale": true,
+      "ignore_background": false,
+      "rescue_near_last": false,
+      "fallback_click_last": false,
+      "guard_template": "",
+      "guard_threshold": 0.85
     }
   ],
   "end_condition": {
@@ -88,7 +98,12 @@
     "multi_scale": true,
     "scale_min": 0.35,
     "scale_max": 2.5,
-    "grayscale": true
+    "grayscale": true,
+    "ignore_background": false,
+    "rescue_near_last": false,
+    "fallback_click_last": false,
+    "guard_template": "",
+    "guard_threshold": 0.85
   },
   "presets": []
 }

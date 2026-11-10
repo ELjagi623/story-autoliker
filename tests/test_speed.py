@@ -7,8 +7,8 @@ import pytest
 from clickflow import runner as R
 from clickflow.clock import Clock
 from clickflow.fakes import FakeInput
-from clickflow.models import (FAST_INTERVAL, FAST_WAIT, SLOW_INTERVAL, Profile, Settings, Step, click_interval,
-                              display_interval)
+from clickflow.models import (FAST_INTERVAL, FAST_WAIT, SCHEMA_VERSION, SLOW_INTERVAL, Profile, Settings, Step,
+                              click_interval, display_interval)
 from clickflow.runner import Runner
 from clickflow.storage import TemplateStore
 
@@ -172,7 +172,7 @@ def test_legacy_profile_with_tiny_uniform_waits_opens_at_fastest():
                                     {"name": "next", "wait_before": 0.05, "wait_after": 0.05}],
             "settings": {"jitter_percent": 30.0}}
     p = Profile.from_dict(data)
-    assert p.settings.speed_manual is False and p.settings.speed == 100 and p.version == 3
+    assert p.settings.speed_manual is False and p.settings.speed == 100 and p.version == SCHEMA_VERSION
 
 
 @pytest.mark.parametrize("steps", [

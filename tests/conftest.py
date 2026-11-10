@@ -10,8 +10,13 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 @pytest.fixture(autouse=True)
 def _isolated_home(tmp_path, monkeypatch):
-    """Never touch the real ~/ClickFlow during tests."""
+    """Never touch the real ~/ClickFlow during tests; the UI is tested in English, simple mode, light theme."""
     monkeypatch.setenv("CLICKFLOW_HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("CLICKFLOW_LANG", "en")
+    from clickflow.gui import i18n, prefs
+
+    prefs.reset_cache()
+    i18n.set_language("en", save=False)
 
 
 def pytest_report_header(config):

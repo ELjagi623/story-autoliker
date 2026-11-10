@@ -21,6 +21,7 @@ from test_e2e_mock_window import backend, build_profile, make_runner, make_windo
 def g(qapp, tmp_path):
     win = MainWindow(storage.new_profile("speed", root=tmp_path / "p"), start_hotkey=False)
     win.show()
+    win.set_mode(True)
     win.add_step()
     win.step_list.setCurrentRow(0)
     yield win
@@ -30,18 +31,18 @@ def g(qapp, tmp_path):
 
 def test_new_profile_starts_in_slider_mode_with_the_waits_locked(g):
     assert g.speed_slider.value() == 50 and not g.chk_manual.isChecked() and g.speed_slider.isEnabled()
-    assert "at least 0.61 s between clicks" in g.lbl_speed.text()
+    assert "At least 0.61 s between clicks" in g.lbl_speed.text()
     e = g.step_editor
     assert not e.wait_before.isEnabled() and not e.wait_after.isEnabled()
-    assert e.waits_note.isVisibleTo(e) and "Speed slider" in e.waits_note.text()
+    assert e.waits_note.isVisibleTo(e) and "Speed is on Auto" in e.waits_note.text()
     assert e.wait_before.value() == FAST_WAIT == e.wait_after.value()  # shows what is in force
 
 
 def test_moving_the_slider_updates_the_setting_and_the_readout(g):
     g.speed_slider.setValue(0)
-    assert g.profile.settings.speed == 0 and "at least 1.50 s between clicks" in g.lbl_speed.text()
+    assert g.profile.settings.speed == 0 and "At least 1.50 s between clicks" in g.lbl_speed.text()
     g.speed_slider.setValue(100)
-    assert g.profile.settings.speed == 100 and "fastest: no added delay" in g.lbl_speed.text()
+    assert g.profile.settings.speed == 100 and "Fastest: no added delay" in g.lbl_speed.text()
     assert "0.25 s" in g.lbl_speed.text()
     g.speed_slider.setValue(25)
     assert f"{click_interval(25):.2f} s" in g.lbl_speed.text() and g.dirty
@@ -120,7 +121,7 @@ def test_users_existing_profile_opens_on_the_fastest_setting(qapp, tmp_path):
     win = MainWindow(storage.load_profile(d), start_hotkey=False)
     try:
         assert win.speed_slider.value() == 100 and not win.chk_manual.isChecked()
-        assert "fastest" in win.lbl_speed.text()
+        assert "Fastest" in win.lbl_speed.text()
         win.step_list.setCurrentRow(0)
         assert not win.step_editor.wait_after.isEnabled()
     finally:

@@ -21,7 +21,8 @@ def gui(qapp, tmp_path):
     prof = storage.new_profile("gui test", root=tmp_path / "profiles")
     win = MainWindow(prof, start_hotkey=False)
     win.show()
-    win.chk_manual.setChecked(True)  # these tests edit per-step waits: advanced mode
+    win.set_mode(True)  # these tests drive every field, so they run in the advanced layout
+    win.chk_manual.setChecked(True)  # ... and edit per-step waits manually
     yield win
     win.dirty = False
     win.close()
@@ -67,9 +68,9 @@ def test_editor_fields_write_back_to_step(gui):
     e.not_found.setCurrentIndex(e.not_found.findData("key"))
     e.fallback_key.setText("right")
     e.fallback_key.editingFinished.emit()
-    assert not e.rx.isEnabled() and "WHOLE screen" in e.region_hint.text()  # no search box yet: warned
+    assert not e.rx.isEnabled() and "whole screen is scanned" in e.region_hint.text()  # no search area yet: warned
     e.set_region_values((10, 20, 300, 200))
-    assert e.rx.isEnabled() and "Search box set" in e.region_hint.text()
+    assert e.rx.isEnabled() and "Search area set" in e.region_hint.text()
     e.rw.setValue(300), e.rh.setValue(200)  # fine-tuning the numbers also works
     assert (s.threshold, s.click_type, s.wait_before, s.wait_after, s.timeout) == (0.93, "double", 1.5, 2.25, 8)
     assert (s.offset_x, s.offset_y, s.not_found_action, s.fallback_key) == (7, -3, "key", "right")
@@ -82,6 +83,30 @@ def test_editor_fields_write_back_to_step(gui):
     gui.step_list.setCurrentRow(1)
     gui.step_list.setCurrentRow(0)
     assert e.threshold.value() == 0.93 and e.rw.value() == 300
+
+
+def test_outline_and_fallback_switches_write_back(gui):
+    gui.add_step()
+    gui.step_list.setCurrentRow(0)
+    e, s = gui.step_editor, gui.profile.steps[0]
+    e.ignore_background.setChecked(True)
+    e.rescue_near_last.setChecked(True)
+    assert e.guard_alert.isHidden()
+    e.fallback_click_last.setChecked(True)
+    assert not e.guard_alert.isHidden()  # blind click without a 'skip if present' image: warned
+    assert (s.ignore_background, s.rescue_near_last, s.fallback_click_last) == (True, True, True)
+    storage.save_guard_template(gui.profile.directory, s, make_heart(30))
+    e.refresh_guard()
+    assert e.guard_alert.isHidden() and e.btn_clear_guard.isEnabled()
+    e.guard_threshold.setValue(0.9)
+    assert s.guard_threshold == 0.9
+    e.btn_clear_guard.click()
+    assert s.guard_template == "" and not e.guard_alert.isHidden()
+    gui.add_step()
+    gui.step_list.setCurrentRow(1)
+    assert not e.ignore_background.isChecked()
+    gui.step_list.setCurrentRow(0)
+    assert e.ignore_background.isChecked() and e.fallback_click_last.isChecked()
 
 
 def test_settings_and_save_load_through_ui(gui):
@@ -114,21 +139,21 @@ def test_default_profile_opens_with_templates_note_and_no_search_boxes(qapp, tmp
     win = MainWindow(prof, start_hotkey=False)
     try:
         assert win.banner.text().startswith("Sample profile")
-        assert "NO TEMPLATE" not in win.step_list.item(0).text()
-        assert "no search box" in win.step_list.item(0).text()  # the nudge to draw one
+        assert "No target" not in win.step_list.item(0).text()
+        assert "No search area" in win.step_list.item(0).text()  # the nudge to draw one
     finally:
         win.dirty = False
         win.close()
 
 
 def test_start_refuses_without_templates(gui, monkeypatch):
-    from PySide6.QtWidgets import QMessageBox
+    from clickflow.gui import dialogs
 
     shown = []
-    monkeypatch.setattr(QMessageBox, "warning", lambda *a, **k: shown.append(a[2]))
+    monkeypatch.setattr(dialogs, "show_problems", lambda parent, problems: shown.append(list(problems)))
     gui.add_step()
     gui.start_run(dry=False)
-    assert gui._run_thread is None and shown and "template" in shown[0].lower()
+    assert gui._run_thread is None and shown and "template" in shown[0][0].lower()
 
 
 def test_capture_overlay_maps_drag_to_screenshot_pixels(qapp):
@@ -219,6 +244,7 @@ def test_settings_survive_save_and_app_restart(qapp, tmp_path):
     prof = storage.new_profile("my flow", root=tmp_path / "profiles")
     win = MainWindow(prof, start_hotkey=False)
     win.show()
+    win.set_mode(True)
     win.chk_manual.setChecked(True)
     win.add_step()
     win.step_list.setCurrentRow(0)
@@ -229,8 +255,7 @@ def test_settings_survive_save_and_app_restart(qapp, tmp_path):
     win.s_infinite.setChecked(True)
     _type_without_committing(win.s_maxclicks, "77")
     win.s_hotkey.setFocus()
-    win.s_hotkey.selectAll()
-    QTest.keyClicks(win.s_hotkey, "F9")  # typed, Enter never pressed
+    QTest.keyClick(win.s_hotkey, Qt.Key.Key_F9)  # pressed once: the field captures the key, no Enter needed
     win.act_save.trigger()  # exactly what the toolbar's Save button does
     assert not win.dirty
     win.dirty = False
@@ -281,15 +306,15 @@ def test_initial_window_size_always_fits_the_screen(w, h):
 def test_window_can_shrink_to_a_small_laptop_screen(gui):
     """The Global settings page used to force a ~935 px tall window; it is scrollable now."""
     hint = gui.minimumSizeHint()
-    assert hint.height() <= 560 and hint.width() <= 1000, (hint.width(), hint.height())
-    gui.resize(1000, 560)
-    assert gui.height() <= 600
+    assert hint.height() <= 640 and hint.width() <= 960, (hint.width(), hint.height())  # the design's minimum window
+    gui.resize(960, 640)
+    assert gui.height() <= 680
 
 
 def test_settings_tab_is_scrollable_but_still_reachable(gui):
     from PySide6.QtWidgets import QScrollArea
 
-    page = gui.tabs.widget(1)
+    page = gui.scroll_global
     assert isinstance(page, QScrollArea)
     assert page.widget().findChild(type(gui.s_loops)) is not None  # the controls live inside the scroll area
     gui.s_loops.setValue(7)

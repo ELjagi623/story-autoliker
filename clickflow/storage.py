@@ -76,18 +76,32 @@ def save_template(directory: Path, step: Step, image: np.ndarray, preset: Option
     return rel
 
 
+def _guard_rel(step: Step) -> str:
+    return f"{TEMPLATE_DIR}/{slugify(step.name)[:40]}_{step.id}_guard.png"
+
+
+def save_guard_template(directory: Path, step: Step, image: np.ndarray) -> str:
+    """Write ``image`` as the step's "skip if this is there" image (e.g. the already-liked heart)."""
+    rel = _guard_rel(step)
+    write_png(Path(directory) / rel, image)
+    step.guard_template = rel
+    return rel
+
+
 def copy_template(directory: Path, src: Step, dst: Step) -> None:
-    """Give ``dst`` its own copy of ``src``'s template file (used when duplicating a step)."""
-    if not src.template:
-        return
-    src_path = Path(directory) / src.template
-    if not src_path.exists():
-        return
-    rel = _template_rel(dst)
-    dst_path = Path(directory) / rel
-    dst_path.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(src_path, dst_path)
-    dst.template = rel
+    """Give ``dst`` its own copy of ``src``'s template (and guard image) files (used when duplicating a step)."""
+    for attr, rel_of in (("template", _template_rel), ("guard_template", _guard_rel)):
+        src_rel = getattr(src, attr)
+        if not src_rel:
+            continue
+        src_path = Path(directory) / src_rel
+        if not src_path.exists():
+            continue
+        rel = rel_of(dst)
+        dst_path = Path(directory) / rel
+        dst_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(src_path, dst_path)
+        setattr(dst, attr, rel)
 
 
 def copy_preset_entries(directory: Path, profile: Profile, src: Step, dst: Step) -> None:
@@ -158,6 +172,7 @@ def _all_steps(profile: Profile) -> list[Step]:
 def template_files(profile: Profile) -> list[str]:
     """Every template file the profile refers to (step templates and preset overrides)."""
     files = [s.template for s in _all_steps(profile) if s.template]
+    files += [s.guard_template for s in _all_steps(profile) if s.guard_template]
     for p in profile.presets:
         files += [t for t in p.templates.values() if t]
     return list(dict.fromkeys(files))

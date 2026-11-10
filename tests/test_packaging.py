@@ -17,7 +17,7 @@ def test_default_profile_keeps_the_authors_settings_but_has_no_search_boxes():
     d = json.loads((ROOT / "examples" / "instagram_story_like" / "profile.json").read_text(encoding="utf-8"))
     like, nxt = d["steps"]
     assert (like["name"], like["click_type"], like["threshold"], like["click_only_if_found"]) == (
-        "Like (heart) - only if not yet liked", "left", 0.88, True)
+        "Like (heart) - only if not yet liked", "left", 0.85, True)
     assert (nxt["name"], nxt["click_type"], nxt["threshold"], nxt["not_found_action"], nxt["retries"]) == (
         "Next story (arrow)", "left", 0.85, "retry", 5)
     for st in d["steps"]:
@@ -100,22 +100,21 @@ def test_the_gpl_package_mouseinfo_is_never_shipped():
 
 
 def test_help_menu_licence_dialog_reads_the_bundled_files(qapp, tmp_path, monkeypatch):
-    from PySide6.QtWidgets import QDialog, QPlainTextEdit
-
+    from clickflow.gui import dialogs
     from clickflow.gui.main_window import MainWindow
 
     shown = {}
 
-    def fake_exec(self):
-        shown["texts"] = [w.toPlainText() for w in self.findChildren(QPlainTextEdit)]
-        return 0
+    def fake_about(parent, version, licenses, start_tab=0):
+        shown["texts"] = [text for _title, text in licenses]
+        shown["tab"] = start_tab
 
-    monkeypatch.setattr(QDialog, "exec", fake_exec)
+    monkeypatch.setattr(dialogs, "about", fake_about)
     win = MainWindow(storage.new_profile("lic", root=tmp_path / "p"), start_hotkey=False)
     try:
         win.show_licenses()
         texts = shown["texts"]
-        assert len(texts) == 2
+        assert len(texts) == 2 and shown["tab"] == 1  # opens on the licences tab
         assert any(t.startswith("MIT License") for t in texts)
         assert any("LGPL" in t and "PySide6" in t for t in texts)
     finally:

@@ -6,11 +6,38 @@ from typing import Optional
 
 import numpy as np
 from PySide6.QtCore import QPoint, QRect, QRectF, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QFont, QGuiApplication, QPainter, QPen
+from PySide6.QtGui import QColor, QFont, QFontMetrics, QGuiApplication, QPainter, QPen
 from PySide6.QtWidgets import QWidget
 
 from .. import platform_utils
 from .qtutils import bgr_to_pixmap
+
+# Native overlays use plain colours (no theme): they must stay readable over any desktop, light or dark.
+_FONT = "Segoe UI"
+ACCENT = QColor("#34C759")
+ORANGE = QColor("#FF9F1C")
+FOUND = QColor("#1FBF75")
+REGION = QColor("#B08CFF")
+NAVY = QColor("#101418")
+STOP_RED = QColor("#D1344A")
+SCRIM = QColor(0, 0, 0, 150)
+
+
+def _pill(p: QPainter, text: str, x: float, y: float, bg: QColor, fg: QColor, above: bool = True) -> None:
+    """Small solid label glued to the top-left edge of a box (flips inside when it would leave the screen)."""
+    font = QFont(_FONT, 9)
+    font.setWeight(QFont.Weight.DemiBold)
+    p.save()
+    p.setFont(font)
+    w = QFontMetrics(font).horizontalAdvance(text) + 14
+    top = y - 22 if above and y >= 24 else y + 2
+    r = QRectF(x, top, w, 20)
+    p.setPen(Qt.PenStyle.NoPen)
+    p.setBrush(bg)
+    p.drawRoundedRect(r, 5, 5)
+    p.setPen(fg)
+    p.drawText(r, Qt.AlignmentFlag.AlignCenter, text)
+    p.restore()
 
 
 class CaptureOverlay(QWidget):
@@ -54,38 +81,49 @@ class CaptureOverlay(QWidget):
 
     def paintEvent(self, _e) -> None:  # noqa: N802
         p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
         p.drawPixmap(self.rect(), self._pix)
-        p.fillRect(self.rect(), QColor(0, 0, 0, 130))
+        p.fillRect(self.rect(), SCRIM)
         sel = self._sel()
         if sel and sel.width() > 0 and sel.height() > 0:
             sx, sy = self._pix.width() / self.width(), self._pix.height() / self.height()
             src = QRectF(sel.x() * sx, sel.y() * sy, sel.width() * sx, sel.height() * sy)
             p.drawPixmap(QRectF(sel), self._pix, src)  # un-dimmed hole
-            p.setPen(QPen(QColor(0, 200, 255), 2))
+            p.setPen(QPen(ACCENT, 2))
             p.setBrush(Qt.BrushStyle.NoBrush)
             p.drawRect(sel)
-            p.setFont(QFont("Arial", 10))
-            p.setPen(QColor(255, 255, 255))
-            p.drawText(sel.x(), max(14, sel.y() - 6), f"{round(src.width())} x {round(src.height())} px")
+            # 8 x 8 handles on the corners and edge midpoints
+            p.setBrush(QColor(255, 255, 255))
+            p.setPen(QPen(ACCENT, 1.5))
+            for hx, hy in ((sel.left(), sel.top()), (sel.center().x(), sel.top()), (sel.right(), sel.top()),
+                           (sel.left(), sel.center().y()), (sel.right(), sel.center().y()),
+                           (sel.left(), sel.bottom()), (sel.center().x(), sel.bottom()), (sel.right(), sel.bottom())):
+                p.drawRect(QRectF(hx - 4, hy - 4, 8, 8))
+            _pill(p, f"{round(src.width())} × {round(src.height())} px", sel.x(), sel.y(), ACCENT, NAVY, above=True)
         self._paint_guides(p)
-        p.setFont(QFont("Arial", 13))
+        # hint bar (top-left)
+        font = QFont(_FONT, 13)
+        p.setFont(font)
+        w = QFontMetrics(font).horizontalAdvance(self._hint) + 32
+        bar = QRectF(20, 20, w, 36)
+        p.setPen(QPen(QColor("#464950"), 1))
+        p.setBrush(QColor(20, 21, 23, 235))
+        p.drawRoundedRect(bar, 18, 18)
         p.setPen(QColor(255, 255, 255))
-        p.drawText(20, 36, self._hint)
+        p.drawText(bar, Qt.AlignmentFlag.AlignCenter, self._hint)
         p.end()
 
     def _paint_guides(self, p: QPainter) -> None:
         if not self._guides:
             return
         sx, sy = self._pix.width() / self.width(), self._pix.height() / self.height()
-        p.setFont(QFont("Arial", 10, QFont.Weight.Bold))
         for x, y, w, h, label in self._guides:
             r = QRectF(x / sx, y / sy, w / sx, h / sy)
-            col = QColor(0, 220, 255) if label == "template" else QColor(255, 170, 0)
+            col = ACCENT if label == "template" else ORANGE
             p.setPen(QPen(col, 2, Qt.PenStyle.DashLine))
             p.setBrush(Qt.BrushStyle.NoBrush)
             p.drawRect(r)
-            p.setPen(col)
-            p.drawText(QPoint(int(r.x()) + 2, max(12, int(r.y()) - 4)), label)
+            _pill(p, label, r.x(), r.y(), col, NAVY, above=True)
 
     def mousePressEvent(self, e) -> None:  # noqa: N802
         if e.button() == Qt.MouseButton.RightButton:
@@ -160,7 +198,7 @@ class Highlighter(QWidget):
         f = platform_utils.input_to_qt_factor(screen.devicePixelRatio())
         l, t, w, h = rect
         box = QRectF(l * f - geo.x(), t * f - geo.y(), w * f, h * f)
-        color = QColor(70, 150, 255) if kind == "region" else (QColor(40, 220, 80) if found else QColor(255, 170, 0))
+        color = REGION if kind == "region" else (FOUND if found else ORANGE)
         self._boxes.append((box, label, color, time.monotonic() + ms / 1000.0, kind == "region"))
         if not self.isVisible():
             self.setGeometry(geo)
@@ -179,14 +217,14 @@ class Highlighter(QWidget):
 
     def paintEvent(self, _e) -> None:  # noqa: N802
         p = QPainter(self)
-        p.setFont(QFont("Arial", 10, QFont.Weight.Bold))
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
         for box, label, color, _, dashed in self._boxes:
-            outer = box.adjusted(-4, -4, 4, 4)  # drawn outside the match so the icon pixels stay untouched
-            p.setPen(QPen(color, 3, Qt.PenStyle.DashLine if dashed else Qt.PenStyle.SolidLine))
+            outer = box.adjusted(-4, -4, 4, 4)  # drawn outside the match so the target pixels stay untouched
+            pen = QPen(color, 2 if dashed else 3, Qt.PenStyle.DashLine if dashed else Qt.PenStyle.SolidLine)
+            p.setPen(pen)
             p.setBrush(Qt.BrushStyle.NoBrush)
             p.drawRect(outer)
-            p.setPen(color)
-            p.drawText(QPoint(int(outer.x()), max(12, int(outer.y()) - 5)), label)
+            _pill(p, label, outer.x(), outer.y(), color, NAVY, above=True)
         p.end()
 
 
@@ -208,7 +246,7 @@ class StopBadge(QWidget):
         self._text = "STOP"
 
     def show_badge(self, hotkey: str) -> None:
-        self._text = f"■ STOP  ({hotkey})" if hotkey else "■ STOP"
+        self._text = f"STOP · {hotkey}" if hotkey else "STOP"
         geo = QGuiApplication.primaryScreen().geometry()
         self.move(geo.x() + (geo.width() - self.width()) // 2, geo.y() + 6)
         self.show()
@@ -218,11 +256,20 @@ class StopBadge(QWidget):
     def paintEvent(self, _e) -> None:  # noqa: N802
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(STOP_RED)
+        p.drawRoundedRect(QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5), 22, 22)
+        font = QFont(_FONT, 11)
+        font.setWeight(QFont.Weight.Bold)
+        p.setFont(font)
+        fm = QFontMetrics(font)
+        total = 14 + 12 + fm.horizontalAdvance(self._text)
+        x0 = (self.width() - total) / 2
         p.setPen(QPen(QColor(255, 255, 255), 2))
-        p.setBrush(QColor(200, 30, 30))
-        p.drawRoundedRect(self.rect().adjusted(1, 1, -1, -1), 10, 10)
-        p.setFont(QFont("Arial", 12, QFont.Weight.Bold))
-        p.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, self._text)
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawRoundedRect(QRectF(x0, self.height() / 2 - 7, 14, 14), 3, 3)  # the "stop" square glyph
+        p.setPen(QColor(255, 255, 255))
+        p.drawText(QRectF(x0 + 26, 0, total, self.height()), Qt.AlignmentFlag.AlignVCenter, self._text)
         p.end()
 
     def mousePressEvent(self, e) -> None:  # noqa: N802

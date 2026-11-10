@@ -35,6 +35,13 @@ SLEEP_SLICE = 0.05  # waits are chopped into slices so Stop / corner abort react
 CORNER_TOLERANCE = 2.0
 MAX_CONSECUTIVE_ERRORS = 5
 
+# Not-found fallbacks (Step.rescue_near_last / Step.fallback_click_last)
+RESCUE_PAD = 0.5  # the rescue looks in the last match box grown by this fraction of its size on every side
+RESCUE_MARGIN = 0.10  # ... with the threshold lowered by this much
+RESCUE_MIN_THRESHOLD = 0.6
+BLIND_MAX_LOOPS = 5  # a blind click needs a real match of this step within the last N loops
+BLIND_MAX_STREAK = 3  # at most this many blind clicks in a row; then wait for a real match again
+
 
 @dataclass
 class Event:
@@ -106,6 +113,8 @@ class Runner:
         self._overhead = 0.2  # smoothed seconds from "start looking" to "clicked" (scan + click themselves)
         self._search_t0 = 0.0
         self._scale_hint: dict[str, float] = {}  # step id -> scale that matched last time (tried first)
+        self._last_hit: dict[str, tuple[Hit, int]] = {}  # step id -> (last real match, loop number it happened in)
+        self._blind_streak: dict[str, int] = {}  # step id -> blind clicks in a row since the last real match
         self._stop = threading.Event()
         self._stop_reason = USER
         self.clicks = 0
@@ -370,11 +379,110 @@ class Runner:
             if attempt < attempts:
                 self._log(f"Step '{step.name}': not found (best {hit.confidence:.2f}), retry {attempt}/{step.retries}", "warn")
 
-        if not hit.found:
-            self._not_found(step, hit)
-            return
-        self._act(step, hit)
+        if hit.found:
+            self._remember(step, hit)
+        else:
+            outcome = self._fallback(step, template)
+            if outcome == "skip":
+                return
+            if outcome is None:
+                self._not_found(step, hit)
+                return
+            hit = outcome
+        self._act(step, hit, report=hit.confidence > 0)
         self._sleep(wait_after, jitter=True, label=f"after '{step.name}'")
+
+    # ------------------------------------------------------------------ not-found fallbacks
+
+    def _remember(self, step: Step, hit: Hit) -> None:
+        self._last_hit[step.id] = (hit, self.loops)
+        self._blind_streak[step.id] = 0
+
+    def _fallback(self, step: Step, template) -> "Optional[Hit] | str":
+        """The target was not found: try the step's fallbacks. Returns a Hit to click, "skip", or None (= not found).
+
+        Order: the guard image near the last position ("already done" -> skip), a relaxed search near the last
+        position, then a blind click at the last position (only shortly after a real match, a few times in a row).
+        """
+        if not (step.rescue_near_last or step.fallback_click_last):
+            return None
+        last = self._last_hit.get(step.id)
+        if last is None:
+            return None
+        last_hit, last_loop = last
+        frame = self._grab()
+        if frame is None:
+            return None
+        guard = self._guard_seen(step, frame, last_hit)
+        if guard is True:
+            self._log(f"Step '{step.name}': not found, but the 'skip if present' image is there - already done, skipped")
+            return "skip"
+        if step.rescue_near_last:
+            thr = max(RESCUE_MIN_THRESHOLD, step.threshold - RESCUE_MARGIN)
+            near = self._match_near(frame, template, last_hit, thr, grayscale=step.grayscale,
+                                    outline=step.ignore_background,
+                                    scales=[last_hit.scale, last_hit.scale * 0.95, last_hit.scale * 1.05])
+            if near.found:
+                self._log(f"Step '{step.name}': rescued near its last position (confidence {near.confidence:.2f}, "
+                          f"relaxed threshold {thr:.2f})", "warn")
+                self._remember(step, near)
+                return near
+        if not step.fallback_click_last:
+            return None
+        since = self.loops - last_loop
+        streak = self._blind_streak.get(step.id, 0)
+        if guard is None:
+            self._log(f"Step '{step.name}': no blind click - the 'skip if present' image could not be checked", "warn")
+            return None
+        if since > BLIND_MAX_LOOPS:
+            self._log(f"Step '{step.name}': no blind click - its last real match was {since} loops ago "
+                      f"(max {BLIND_MAX_LOOPS})", "warn")
+            return None
+        if streak >= BLIND_MAX_STREAK:
+            self._log(f"Step '{step.name}': no blind click - already {streak} in a row; waiting for a real match", "warn")
+            return None
+        self._blind_streak[step.id] = streak + 1
+        self._log(f"Step '{step.name}': not found - blind click at its last position "
+                  f"({streak + 1}/{BLIND_MAX_STREAK} in a row)", "warn")
+        return Hit(True, 0.0, last_hit.rect, last_hit.scale)
+
+    def _guard_seen(self, step: Step, frame: Frame, last_hit: Hit) -> Optional[bool]:
+        """Is the step's guard ("skip if present") image near the last position? None = could not check."""
+        if not step.guard_template:
+            return False
+        try:
+            guard = self.templates.get(step.guard_template)
+        except ProfileError as exc:
+            self._log(f"Step '{step.name}': guard image: {exc}", "error")
+            return None
+        s = last_hit.scale
+        # the window must fit the guard image too, whatever size it was captured at
+        extra = (guard.shape[1] * s / frame.scale_x, guard.shape[0] * s / frame.scale_y)
+        hit = self._match_near(frame, guard, last_hit, step.guard_threshold, grayscale=False, outline=False,
+                               scales=scale_list(max(0.1, s * 0.75), s * 1.33, first=s), extra=extra)
+        if hit.found:
+            self._report_match(step, hit, tag="guard")
+        return hit.found
+
+    def _match_near(self, frame: Frame, template, around: Hit, threshold: float, *, grayscale: bool, outline: bool,
+                    scales, extra: tuple[float, float] = (0.0, 0.0)) -> Hit:
+        """Search only in a window around ``around`` (its box grown by RESCUE_PAD, plus ``extra`` screen units)."""
+        r = around.rect
+        px = r.width * RESCUE_PAD + extra[0]
+        py = r.height * RESCUE_PAD + extra[1]
+        box = (int(r.left - px), int(r.top - py), int(r.width + 2 * px) + 1, int(r.height + 2 * py) + 1)
+        region = frame.region_to_image(box)
+        if region is None:
+            return Hit(False, 0.0)
+        try:
+            m = self.matcher.find(frame.image, template, threshold, scales=scales, region=region,
+                                  grayscale=grayscale, outline=outline)
+        except Exception as exc:
+            self._log(f"Matcher error: {exc}", "error")
+            return Hit(False, 0.0)
+        if m.w == 0:
+            return Hit(False, m.confidence)
+        return Hit(m.found, m.confidence, frame.rect_to_screen(m.x, m.y, m.w, m.h), m.scale)
 
     def _search(self, step: Step, template) -> Hit:
         """Take screenshots until the template matches or the step timeout expires."""
@@ -419,7 +527,8 @@ class Runner:
                   if step.multi_scale else [1.0])
         try:
             m: MatchResult = self.matcher.find(
-                frame.image, template, step.threshold, scales=scales, region=region, grayscale=step.grayscale
+                frame.image, template, step.threshold, scales=scales, region=region, grayscale=step.grayscale,
+                outline=step.ignore_background,
             )
         except Exception as exc:  # OpenCV error on odd input: treat as a miss, never crash
             self._log(f"Matcher error: {exc}", "error")
@@ -463,9 +572,10 @@ class Runner:
             step=step.name, found=hit.found, confidence=hit.confidence, rect=hit.rect.as_tuple(), tag=tag,
         )
 
-    def _act(self, step: Step, hit: Hit) -> None:
+    def _act(self, step: Step, hit: Hit, report: bool = True) -> None:
         s = self.profile.settings
-        self._report_match(step, hit)
+        if report:
+            self._report_match(step, hit)
         x, y = self._click_point(step, hit)
         if s.max_total_clicks and self.clicks >= s.max_total_clicks:
             raise _Stop(CLICK_LIMIT, f"Click limit of {s.max_total_clicks} reached.")

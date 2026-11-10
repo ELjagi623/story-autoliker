@@ -175,6 +175,10 @@ def selftest(out_path: Optional[str] = None) -> int:
         from .gui.main_window import MainWindow
 
         app = QApplication.instance() or QApplication([])
+        from .gui import i18n, theme
+
+        i18n.init()
+        theme.apply(app)
         win = MainWindow(storage.load_profile(storage.profiles_root() / EXAMPLE_NAME), start_hotkey=False)
         n = win.step_list.count()
         speed = win.lbl_speed.text()
@@ -254,6 +258,10 @@ def main(argv: Optional[list[str]] = None) -> int:
     app.setApplicationVersion(__version__)
     install_crash_handler()
     set_window_icon(app)
+    from .gui import i18n, theme
+
+    i18n.init()
+    theme.apply(app)
     profile = startup_profile(argv[1] if len(argv) > 1 else None)
     win = MainWindow(profile)
     win.show()

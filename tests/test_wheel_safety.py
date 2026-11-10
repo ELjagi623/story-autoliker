@@ -30,6 +30,7 @@ def wheel(widget, delta=-120):
 def gui(qapp, tmp_path):
     win = MainWindow(storage.new_profile("wheel", root=tmp_path / "p"), start_hotkey=False)
     win.show()
+    win.set_mode(True)
     win.chk_manual.setChecked(True)
     win.add_step()
     win.step_list.setCurrentRow(0)
@@ -91,9 +92,9 @@ def test_settings_tab_inputs_are_protected_too(gui):
 
 def test_unusual_click_types_are_flagged_in_the_step_list(gui):
     gui.step_editor.click_type.setCurrentIndex(gui.step_editor.click_type.findData("right"))
-    assert "RIGHT-CLICK" in gui.step_list.item(0).text()
+    assert "Right-click" in gui.step_list.item(0).text()
     gui.step_editor.click_type.setCurrentIndex(gui.step_editor.click_type.findData("left"))
-    assert "CLICK" not in gui.step_list.item(0).text().replace("click-only", "")
+    assert "click" not in gui.step_list.item(0).text().lower().replace("click only", "")
 
 
 def test_run_log_starts_with_a_plan_of_every_step():

@@ -53,7 +53,7 @@ excludes = [
     "mouseinfo", "tkinter", "_tkinter", "pytest", "_pytest", "IPython", "matplotlib", "PIL", "scipy",
     "PySide6.QtWebEngineCore", "PySide6.QtWebEngineWidgets", "PySide6.QtWebEngineQuick", "PySide6.QtQml",
     "PySide6.QtQuick", "PySide6.QtQuickWidgets", "PySide6.Qt3DCore", "PySide6.QtMultimedia", "PySide6.QtPdf",
-    "PySide6.QtCharts", "PySide6.QtDataVisualization", "PySide6.QtSql", "PySide6.QtNetwork", "PySide6.QtSvg",
+    "PySide6.QtCharts", "PySide6.QtDataVisualization", "PySide6.QtSql", "PySide6.QtNetwork",
     "PySide6.QtOpenGL", "PySide6.QtBluetooth", "PySide6.QtPositioning", "PySide6.QtTest",
 ]
 
@@ -70,8 +70,9 @@ a = Analysis(
 )
 # OpenCV wheels carry an FFmpeg DLL (LGPL-2.1) for video I/O. ClickFlow only reads PNG screenshots: leave it out.
 a.binaries = [b for b in a.binaries if "ffmpeg" not in b[0].lower()]
-# Qt pieces a QtWidgets desktop tool never loads (QML/Quick, PDF, SVG, on-screen keyboard) - about 20 MB.
-_DROP = ("qt6quick", "qt6qml", "qt6pdf", "qt6virtualkeyboard", "qt6svg", "qsvg", "qpdf", "qtvirtualkeyboard")
+# Qt pieces a QtWidgets desktop tool never loads (QML/Quick, PDF, on-screen keyboard, SVG plugins) - about 20 MB.
+# Qt6Svg.dll itself is kept: the UI icon set is rendered with QSvgRenderer.
+_DROP = ("qt6quick", "qt6qml", "qt6pdf", "qt6virtualkeyboard", "qsvg", "qpdf", "qtvirtualkeyboard")
 a.binaries = [b for b in a.binaries if not any(k in os.path.basename(b[0]).lower() for k in _DROP)]
 
 pyz = PYZ(a.pure)

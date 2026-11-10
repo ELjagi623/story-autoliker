@@ -10,7 +10,7 @@ from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
 from typing import Any, Optional
 
-SCHEMA_VERSION = 3  # 3: speed slider; 2: the template scale search range defaults to 0.35-2.5 (was 0.7-1.4)
+SCHEMA_VERSION = 4  # 4: outline mode + not-found fallbacks; 3: speed slider; 2: the template scale search range defaults to 0.35-2.5 (was 0.7-1.4)
 
 DEFAULT_SCALE_MIN = 0.35
 DEFAULT_SCALE_MAX = 2.5
@@ -88,10 +88,23 @@ class Step:
     scale_min: float = DEFAULT_SCALE_MIN  # template sizes tried, relative to the captured size
     scale_max: float = DEFAULT_SCALE_MAX
     grayscale: bool = True
+    # Transparent / outline icon (e.g. an outline heart): compare only the icon's stroke, ignore the background
+    # that shows through it (it differs on every screen).
+    ignore_background: bool = False
+    # Fallbacks when the target is not found (all off by default; they run before not_found_action):
+    # 1) look again right where it was last found, with a lower threshold;
+    rescue_near_last: bool = False
+    # 2) still nothing: click where it was last found - but never when the guard image is there.
+    fallback_click_last: bool = False
+    # "Skip if this image is there": e.g. the red, already-liked heart. Seen near the last position = do not click.
+    guard_template: str = ""
+    guard_threshold: float = 0.85
 
     def normalise(self) -> "Step":
         """Clamp every field into its legal range (used after loading / GUI edits)."""
         self.threshold = _clamp(float(self.threshold), MIN_THRESHOLD, MAX_THRESHOLD)
+        self.guard_threshold = _clamp(float(self.guard_threshold), MIN_THRESHOLD, MAX_THRESHOLD)
+        self.guard_template = str(self.guard_template or "")
         self.wait_before = max(0.0, float(self.wait_before))
         self.wait_after = max(0.0, float(self.wait_after))
         self.timeout = max(0.0, float(self.timeout))
