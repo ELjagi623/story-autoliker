@@ -6,7 +6,7 @@
 
 **在屏幕上找到图标,按你定的顺序和等待时间依次点击。**
 
-[![最新版本](https://img.shields.io/github/v/release/Eljagi826/story-autoliker?style=flat-square)](https://github.com/Eljagi826/story-autoliker/releases/latest)
+[![最新版本](https://img.shields.io/github/v/release/ELjagi623/story-autoliker?style=flat-square)](https://github.com/ELjagi623/story-autoliker/releases/latest)
 [![MIT 许可证](https://img.shields.io/badge/license-MIT-f4c430?style=flat-square)](LICENSE)
 ![平台](https://img.shields.io/badge/Windows_10%2F11-已测试-0078d4?style=flat-square)
 
@@ -23,7 +23,7 @@ ClickFlow 通过**图像匹配**在屏幕上找到图标并点击。你只需要
 
 ## 下载
 
-在[最新发布页](https://github.com/Eljagi826/story-autoliker/releases/latest)下载 **`ClickFlow.exe`**。它是适用于 Windows 10 / 11(64 位)的单个文件,免安装,不需要 Python,双击即可运行。
+在[最新发布页](https://github.com/ELjagi623/story-autoliker/releases/latest)下载 **`ClickFlow.exe`**。它是适用于 Windows 10 / 11(64 位)的单个文件,免安装,不需要 Python,双击即可运行。
 
 - 首次运行会在 `C:\Users\你的用户名\ClickFlow\` 生成配置和日志。卸载就是删除 exe 和这个文件夹。
 - exe 没有代码签名,Windows SmartScreen 可能提示"未知发布者",点 **更多信息 > 仍要运行**。
