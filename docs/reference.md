@@ -12,6 +12,11 @@ Features: a step list with per-step template image, threshold, search box, click
 per-display presets that switch automatically by screen resolution - *Test this step* with an automatic diagnosis - dry run -
 stop hotkey / red STOP button / screen-corner emergency stop - a live log. 中文说明见 [README.zh-CN.md](../README.zh-CN.md).
 
+**Interface.** Light / dark theme (top bar), English / Chinese, and two modes: **Simple** (select a target, pick speed and repeats, press
+Start) and **Advanced** (every setting, in collapsible groups). The settings below keep their meaning; the labels were made friendlier:
+*template* is now **target image**, *search box* is **search area**, *match threshold* is **match strictness**, and the old *Step* /
+*Global settings* / *Notes* tabs are **Step settings** / **Global settings** (Advanced mode) / **Profile notes** (a group in Global settings).
+
 > **Terms-of-service warning.** Automating likes (or any other interaction) may violate Instagram's - or any other
 > service's - terms of use and can get an account limited or banned. If you use ClickFlow for this, keep the **volume low**,
 > use **long, randomised delays** (the jitter setting), and set a small **max-click limit**. You are responsible for how you use it.
@@ -176,12 +181,32 @@ The log now states it plainly (`FOUND ... A run WOULD click` / `NOT FOUND ... A 
 |---|---|---|
 | size | icon is on screen but at a different size than the template (browser zoom, window size or display scaling changed) | widen the scale range |
 | search box | icon is on screen but outside the search box | box around where it really is |
+| outline | a see-through icon (outline heart) only matches once the background behind it is ignored | switch on *Outline / transparent icon* |
 | threshold | something similar is there, confidence a bit too low | lower threshold |
 | absent | nothing resembling the template | re-capture the template while the icon is visible |
 
 Template sizes are searched from 0.35x to 2.5x of the captured size by default (profiles saved with the old 0.7-1.4 range are upgraded
 on load). The scale that matched last time is tried first, so repeat scans stay fast. For the best precision, re-capture a template whenever the
 icon's on-screen size changed.
+
+## Transparent icons and "not found" fallbacks
+
+Some icons are see-through: Instagram's like heart is a white **outline** drawn over the story. A captured template of it is
+mostly the background it was captured on, so a busy or colourful story lowers the score and the like is silently skipped.
+
+* **Outline / transparent icon** (Advanced -> Match): compares only the icon's own lines and ignores whatever shows through it.
+  On synthetic busy backgrounds this lifts the heart from 0.75-0.88 to 0.86-0.99, while the red liked heart and empty
+  backgrounds stay below 0.65. It costs about 3x the scan time, so use a search area (a box around the heart scans in ~35 ms).
+  *Test this step* suggests it when a template looks like an outline icon.
+
+When the target is still not found, two optional fallbacks (Advanced -> Waits & failure handling) run before *If not found*:
+
+1. **Look again where it was last found**: searches just around the last match, with the strictness lowered by 0.10.
+2. **If still not found, click where it was last found**: a blind click at the last position, at most 3 times in a row and
+   only within 5 loops of a real match (so it stops once the story viewer has closed).
+
+**Skip if this image is there** is checked first: when that image (capture the **red, already-liked heart**) is near the last
+position, the step is skipped and nothing is clicked. Without it a blind click could unlike a story, and the editor warns you.
 
 ### Decisions made (the brief said not to ask)
 

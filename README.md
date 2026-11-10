@@ -37,7 +37,7 @@ The example below uses the Instagram story profile. The icons look different on 
 
 1. Start ClickFlow. The `instagram_story_like` profile opens.
 2. Open the story viewer so the heart and the "next story" arrow are visible.
-3. Select a step and press **Capture template...**. Drag a tight rectangle around the icon, then drag a **search box** around the area where it appears. Use the unliked (outline) heart for step 1 and the next-story arrow for step 2.
+3. Select a step and press **Re-select**. Drag a tight rectangle around the icon, then drag a **search box** around the area where it appears. Use the unliked (outline) heart for step 1 and the next-story arrow for step 2. The heart step already has *Outline / transparent icon* switched on, so busy story backgrounds do not hide it.
 4. Press **Test this step**. It looks once and tells you plainly whether a run would click, and with what confidence. If not, it explains why and offers a one-click fix.
 5. Press **Dry run** to watch the whole flow with boxes and no clicks.
 6. Press **Start**. You get a 2-second delay to switch to the story window.
@@ -52,9 +52,12 @@ To practise safely, run `python -m clickflow.mock_window`. It shows a fake story
 - **Flexible steps.** Each step has its own template image, match threshold, search box, click offset, click type (left, right, double), waits, timeout, and what to do when nothing is found (skip, retry, stop, or press a fallback key).
 - **Speed slider.** One control sets the time between clicks, from no added delay to 1.5 s. Tick *Advanced* to edit each step's waits by hand.
 - **Search boxes and display presets.** A search box limits a step to where its icon appears, which is about 55 ms per scan on any screen size. Presets store boxes per display resolution and switch automatically for each monitor.
-- **Test this step.** A single look that says whether a run would click. On failure it diagnoses the cause (icon size changed, outside the search box, threshold too strict, or absent) and can apply the fix.
+- **Test this step.** A single look that says whether a run would click. On failure it diagnoses the cause (icon size changed, outside the search box, a see-through icon, threshold too strict, or absent) and can apply the fix.
+- **Transparent icons.** *Outline / transparent icon* mode compares only an icon's own lines, so see-through icons such as an outline heart are found on busy or colourful backgrounds.
+- **Not-found fallbacks.** Optionally look again around the last match, or click where the icon was last found. A *Skip if this image is there* check (for example the red, already-liked heart) stops a fallback click from undoing a like. See the [reference](docs/reference.md#transparent-icons-and-not-found-fallbacks).
 - **Safe by design.** Dry run, a total click limit, random delay jitter, and an optional end-condition image.
 - **Live log.** Every step's confidence, position and click coordinates.
+- **Simple and Advanced modes**, light and dark themes, and an English or Chinese interface.
 
 ## Stopping a run
 
